@@ -1,7 +1,24 @@
 /*
     Skyrim main theme on dual buzzer player
 
-    Hardware required:
+    References and acknowledgements:
+    Original inspiration for solution method to dual passive buzzer problem:
+    https://www.reddit.com/r/arduino/comments/18dsiaz/how_do_i_reproduce_twoor_more_tones_at_the_same/
+
+    millis() function documentation
+    https://docs.arduino.cc/language-reference/en/functions/time/millis/
+
+    tone() function documentation
+    https://docs.arduino.cc/language-reference/en/functions/advanced-io/tone/
+
+    Using millis() to time events such as playing tone()
+    https://www.programmingelectronics.com/arduino-sketch-with-millis-instead-of-delay/
+
+    The rights to the melody used in this program belongs to Bethesda's Elder Scrolls V: Skyrim and its
+    original creator Jeremy Soule
+    https://youtu.be/813-3iL5OsE
+
+    Hardware:
     1x Adafruit flora
     2x sewable Buzzers (I used the ones from Lilypad Protosnap Pluses)
       -> one goes on pin 6 (the melody)
@@ -17,8 +34,9 @@
     - Press button: both buzzers should alternate, producing melody + accompaniment
     - Disconnect pin 6 buzzer: only accompaniment plays on its turns, silence on melody turns
     - Disconnect pin 3 buzzer: only melody plays on its turns, silence on accompaniment turns
-    - Slide switch ON: NeoPixel should light up
+    - Slide switch ON: NeoPixel should light up Red
     - Slide switch OFF: NeoPixel should turn off
+    - Modifying SWITCH_MS changes length of buzzer play. Higher = slower alternation, Lower = faster
 */
 
 
@@ -79,7 +97,7 @@ int accompaniment[] = {
   NOTE_F3, NOTE_Eb3, NOTE_G3, NOTE_F3, NOTE_Eb3, NOTE_D3, NOTE_C3
 };
 
-// Note durations: 4 = quarter, 8 = eighth, 2 = half
+// Note durations: 2 = half, 4 = quarter, 8 = eighth
 int noteDurations[] = {
   8,8,4,8,8,4,8,8,
   4,8,8,4,8,8,4,8,
@@ -94,8 +112,11 @@ const int buttonPin  = 9;
 const int pixelPin   = 12;
 const int switchPin  = 10;
 
+//Beats Per Minute - how many quarter notes played in 60 seconds:
 const int BPM        = 80;
+// 4 quarter notes per whole note divided by how many quarter notes play per minute
 const int WHOLE_NOTE = (60000 * 4) / BPM;
+
 const int melodyLen  = sizeof(melody) / sizeof(melody[0]);
 
 const int NUMPIXELS = 1;
@@ -114,15 +135,20 @@ void setup() {
 }
 
 void playSong() {
-  // Arduino's tone() function can only be used one pin at a time, so we rapidly alternate
-  // between the two buzzers. Each plays its own note fast enough that both
-  // seem to sound somewhat simultaneously. SWITCH_MS controls how long each buzzer plays
-  // per turn — higher sounds more distinct, lower sounds more blended but grainier.
-  // In my testing, I found frequencies of 105-150 to sound the best as anything below 100 gains
-  // a lot of clicking noises. Values that are too high (above say 175) result in shorter notes being
-  // skipped altogether whereas the 105-150 range sounds almost like an old videogame theme (Which is kind of is)
+  /* 
+    Because of the buzzers being used are passive, they require external input to tell them what tone to play (hence tone()), and can only be activated one at a time.
+    The tradeoff is that they allow us to have only 2 buzzers as opposed to many more by each being able to play a range of notes.
+    Active buzzers, on the other hand, would have a fixed frequency they play at, and be able to play at the same time as other buzzers.
+    Since the program utilizes the passive version, we need to employ a rapid alternating technique. We can do so with millis()
+    which, unlike delay, does not block/freeze the microcontroller so the other buzzer can play while that buzzer falls quiet.
+    The intended result is that the alternation between buzzers is fast enough that both buzzers' melodies will be distinguishable. 
 
-  // handles length of buzzer play
+    SWITCH_MS controls how long a buzzer has to play its tone. I have found that the range of 105-160ms to be the best balance for audio quality
+    and harmonization. 
+    Lower = faster switching but grainer and lower quality
+    Higher = slower switching, but runs the risk of skipping notes by blocking the other buzzer for too long 
+  */
+
   const int SWITCH_MS = 112;
 
   // cycle through the melody array and play the notes
@@ -153,7 +179,7 @@ void loop() {
   // Slide switch controls NeoPixel light
   int switchVal = digitalRead(switchPin);
   if (switchVal == LOW) {
-    pixels.setPixelColor(0, pixels.Color(150, 150, 150));
+    pixels.setPixelColor(0, pixels.Color(255, 0, 0));
   } else {
     pixels.clear();
   }
